@@ -106,10 +106,13 @@ The default colormap is pqlx. Other options are viridis_white_r, obspy_divergent
 ![2005-05-01-1344-36S MVO___025_sgram_fixed](https://user-images.githubusercontent.com/233816/122985952-c5990280-d36c-11eb-8a71-e316f65e5672.png)
 
 
-## Changing the y-scale
+## Making the y-scale logarithmic
 <pre>
   spobj.plot(..., log=True )
 </pre>
+
+![2005-05-01-1344-36S MVO___025_sgram_fixed](https://user-images.githubusercontent.com/233816/122986284-3d672d00-d36d-11eb-9e49-6aad2b0ccf8e.png)
+
 
 ## Changing the frequency limits on the y-axis
 <pre>
