@@ -22,6 +22,9 @@ We plot an icewebSpectrogram object by calling the plot method. Here is the func
                       equal_scale=False, title=None, add_colorbar=True, precompute=False, dbscale=True)
 </pre>
 
+
+
+
 ### 1 - Unscaled, amplitude units
 
 All we have to do is create an instance of an icewebSpectrogram object, and then call the plot method. Each spectrogram is individually scaled to make best use of the colormap.
@@ -31,6 +34,8 @@ All we have to do is create an instance of an icewebSpectrogram object, and then
   spobj.plot(outfile=sgramfile)
 </pre>
 
+![2005-05-01-1344-36S MVO___025_sgram](https://user-images.githubusercontent.com/233816/122985285-fc224d80-d36b-11eb-8c07-36480b9f4234.png)
+
 ### 2 - Best overall scale, amplitude units
 
 As in 1, but we want to choose the best overall spectral amplitude scale so all spectrogram plots are scaled (colored) the same:
@@ -39,6 +44,9 @@ As in 1, but we want to choose the best overall spectral amplitude scale so all 
   sgramfile = 'myspecgram_scaled.png'
   spobj.plot(outfile=sgramfile, equal_scale=True)
 </pre>
+
+![2005-05-01-1344-36S MVO___025_sgram_scaled](https://user-images.githubusercontent.com/233816/122985327-0a706980-d36c-11eb-8ef8-7e7dbc8eb96a.png)
+
 
 ### 3 - Fixed overall scale, amplitude units
 
@@ -51,42 +59,52 @@ spobj.plot(outfile=sgramfile, clim=[1e-8, 1e-5])
 
 Note that the scale here is in units of m/s/Hz. 
 
+![2005-05-01-1344-36S MVO___025_sgram_fixed](https://user-images.githubusercontent.com/233816/122985344-0fcdb400-d36c-11eb-9a6e-2d57047f38d4.png)
 
-### 4 -  Unscaled, decibel (dB) units
+
+
+### 4 -  Unscaled, decibel (dB) units 
 <pre>
   sgramfile = 'myspecgram_unscaled.png'
-  spobj.plot(outfile=sgramfile, dbscale=True)
+  spobj.plot(outfile=sgramfile, dbscale=True, title='Unscaled')
 </pre>
 
-![2005-05-01-1344-36S MVO___025_sgram](https://user-images.githubusercontent.com/233816/122980196-60daa980-d366-11eb-9349-b574a09701d5.png)
+![2005-05-01-1344-36S MVO___025_sgram](https://user-images.githubusercontent.com/233816/122984730-55d64800-d36b-11eb-92a9-40b6d3f7c6c0.png)
+
 
 
 ### 5 -  Best overall scale, decibel (dB) units
 <pre>
   sgramfile = 'myspecgram_unscaled.png'
-  spobj.plot(outfile=sgramfile, equal_scale=True, dbscale=True)
+  spobj.plot(outfile=sgramfile, equal_scale=True, dbscale=True, title='Scaled')
 </pre>
 
-![2005-05-01-1344-36S MVO___025_sgram_scaled](https://user-images.githubusercontent.com/233816/122980222-67692100-d366-11eb-8802-a13cde04744e.png)
+![2005-05-01-1344-36S MVO___025_sgram_scaled](https://user-images.githubusercontent.com/233816/122984751-5bcc2900-d36b-11eb-8374-cb812576db0c.png)
+
 
 
 ### 6 -  Fixed overall scale, decibel (dB) units
 <pre>
   sgramfile = 'myspecgram_unscaled.png'
-  spobj.plot(outfile=sgramfile, clim=[1e-8, 1e-5], dbscale=True)
+  spobj.plot(outfile=sgramfile, clim=[1e-8, 1e-5], dbscale=True, title='Fixed')
 </pre>
 
-![2005-05-01-1344-36S MVO___025_sgram_fixed](https://user-images.githubusercontent.com/233816/122980247-6e902f00-d366-11eb-85ef-53ade9fbca4e.png)
+![2005-05-01-1344-36S MVO___025_sgram_fixed](https://user-images.githubusercontent.com/233816/122984777-62f33700-d36b-11eb-8f62-10e759cbd092.png)
+
 
 
 ## Changing the colormap
 To change the colormap, pass the optional cmap name:value pair to the plot method.
 
+The default colormap is pqlx. Other options are viridis_white_r, obspy_divergent, obspy_sequential
+
 <pre>
-  spobj.plot(..., cmap=pqlx )
+  from obspy.imaging.cm obspy_sequential
+  spobj.plot(..., cmap=obspy_sequential )
 </pre>
 
-The default colormap is pqlx. Other options are viridis_white_r, obspy_divergent, obspy_sequential
+![2005-05-01-1344-36S MVO___025_sgram_fixed](https://user-images.githubusercontent.com/233816/122985952-c5990280-d36c-11eb-8a71-e316f65e5672.png)
+
 
 ## Changing the y-scale
 <pre>
