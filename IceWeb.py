@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 # colormaps
 # https://docs.obspy.org/packages/autogen/obspy.imaging.cm.html
 # obspy_sequential is same as viridis, which is default for matplotlib
-from obspy.imaging.cm import viridis_white_r, obspy_divergent, pqlx, obspy_sequential
+#from obspy.imaging.cm import viridis_white_r, obspy_divergent, pqlx, obspy_sequential
+from obspy.imaging.cm import pqlx
 
 # adding colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -65,7 +66,7 @@ class icewebSpectrogram:
 
     
     def plot(self, outfile=None, secsPerFFT=None, fmin=0.5, fmax=20.0, log=False, cmap=pqlx, clim=None, \
-                      equal_scale=False, title=None, add_colorbar=False, precompute=False, dbscale=True ):   
+                      equal_scale=False, title=None, add_colorbar=True, precompute=False, dbscale=False ):   
         """
         For each Trace in a Stream, plot the seismogram and spectrogram. This results in 2*N subplots 
         on the figure, where N is the number of Trace objects.
@@ -146,8 +147,8 @@ class icewebSpectrogram:
             # fix the axes positions for this trace and spectrogram
             if add_colorbar and clim:
                 spectrogramPosition, tracePosition = icewebSpectrogram.calculateSubplotPositions(N, c, 
-                                                                       frameBottom = 0.13, totalHeight = 0.83)
-                cax = fig.add_axes([spectrogramPosition[0], 0.04, spectrogramPosition[2], 0.025])
+                                                                       frameBottom = 0.17, totalHeight = 0.80)
+                cax = fig.add_axes([spectrogramPosition[0], 0.08, spectrogramPosition[2], 0.02])
             else:
                 spectrogramPosition, tracePosition = icewebSpectrogram.calculateSubplotPositions(N, c)
             ax[c*2].set_position(tracePosition)
