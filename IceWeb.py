@@ -1,15 +1,12 @@
 from obspy.core import read, Stream
 import numpy as np
 
-## imports for copying obspy spectrograms
+## imports for mimicing obspy spectrograms
 from obspy.imaging.spectrogram import _nearest_pow_2
 from matplotlib import mlab
 import matplotlib.pyplot as plt
 
-# colormaps
-# https://docs.obspy.org/packages/autogen/obspy.imaging.cm.html
-# obspy_sequential is same as viridis, which is default for matplotlib
-#from obspy.imaging.cm import viridis_white_r, obspy_divergent, pqlx, obspy_sequential
+# colormaps. See https://docs.obspy.org/packages/autogen/obspy.imaging.cm.html
 from obspy.imaging.cm import pqlx
 
 # adding colorbar
@@ -55,7 +52,6 @@ class icewebSpectrogram:
             #print('seconds per FFT = %.1f' % secsPerFFT)   
         
         for tr in self.stream:
-            #[T, F, S] = icewebSpectrogram.compute_one(tr, wlen=secsPerFFT)
             [T, F, S] = compute_spectrogram(tr, wlen=secsPerFFT)
             self.T.append(T)
             self.F.append(F)
@@ -112,15 +108,14 @@ class icewebSpectrogram:
             print('Stream object is empty. Nothing to do')
             return
          
-        fig, ax = plt.subplots(N*2, 1) # create fig and ax handles with approx positions for now
-        fig.set_size_inches(5.76, 7.56) 
+        fig, ax = plt.subplots(N*2, 1); # create fig and ax handles with approx positions for now
+        fig.set_size_inches(5.76, 7.56); 
  
         if equal_scale: # calculate range of spectral amplitudes
             if self.precomputed:
                 Smin, Smax = icewebSpectrogram.S_range(self, fmin=fmin, fmax=fmax)
             else:
                 index_min = np.argmin(self.stream.max()) # find the index of largest Trace object
-                #[T, F, S] = icewebSpectrogram.compute_one(self.stream[index_min], wlen=secsPerFFT)
                 [T, F, S] = compute_spectrogram(self.stream[index_min], wlen=secsPerFFT)
                 f_indexes = np.intersect1d(np.where(F>=fmin), np.where(F<fmax))
                 S_filtered = S[f_indexes, :]
@@ -141,7 +136,6 @@ class icewebSpectrogram:
                 F = self.F[c]
                 S = self.S[c]                
             else:                
-                #[T, F, S] = icewebSpectrogram.compute_one(tr, wlen=secsPerFFT)
                 [T, F, S] = compute_spectrogram(tr, wlen=secsPerFFT)
         
             # fix the axes positions for this trace and spectrogram
@@ -203,8 +197,7 @@ class icewebSpectrogram:
                     # also add space next to Trace
                     divider2 = make_axes_locatable(ax[c*2])
                     hide_ax = divider2.append_axes("right", size="5%", pad=0.05, visible=False)
-                    
-      
+                      
             # add a ylabel
             ax[c*2+1].set_ylabel('     ' + tr.stats.station + '.' + tr.stats.channel, rotation=80)
             
@@ -223,14 +216,14 @@ class icewebSpectrogram:
             ax[0].set_title(title)
         
         # set the xlimits for each panel from the min and max time values we kept updating
-        [min_t, max_t] = icewebSpectrogram.t_range(self)
+        min_t = min([tr.stats.starttime for tr in self.stream]) 
+        max_t = max([tr.stats.endtime for tr in self.stream]) - min_t        
         [min_T, max_T] = icewebSpectrogram.T_range(self) 
-        #print(min_t, max_t, min_T, max_T) 
         for c in range(N): 
-            ax[c*2].set_xlim(min_t, max_t)
+            ax[c*2].set_xlim(0, max_t)
             ax[c*2].grid(axis='x', linestyle = ':', linewidth=0.5)
             #ax[c*2+1].set_xlim(min_T, max_T)
-            ax[c*2+1].set_xlim(min_t, max_t)
+            ax[c*2+1].set_xlim(0, max_t)
             ax[c*2+1].grid(True, linestyle = ':', linewidth=0.5)    
         
         # write plot to file
@@ -248,14 +241,10 @@ class icewebSpectrogram:
             max_t = max([np.nanmax(t), max_t])
         return min_t, max_t  
     
-    def T_range(self):   
-        min_T = np.Inf
-        max_T = -np.Inf 
-        for c in range(len(self.T)):
-            T = self.T[c]
-            min_T = min([np.nanmin(T), min_T])
-            max_T = max([np.nanmax(T), max_T])  
-        return min_T, max_T
+    def get_time_range(self):
+        min_t = min([tr.stats.starttime for tr in self.stream]) 
+        max_t = max([tr.stats.endtime for tr in self.stream]) 
+        return min_t, max_t      
 
     def S_range(self, fmin=0.5, fmax=20.0):
         Smin = np.Inf
@@ -266,7 +255,6 @@ class icewebSpectrogram:
                             
             # filter S between fmin and fmax and then update Smin and Smax
             f_indexes = np.intersect1d(np.where(F>=fmin), np.where(F<fmax))
-            #print(F[f_indexes[0]], F[f_indexes[-1]])
             try:
                 S_filtered = S[f_indexes, :]
             except:
@@ -274,10 +262,8 @@ class icewebSpectrogram:
             else:
                 Smin = min([np.nanmin(S_filtered), Smin])
                 Smax = max([np.nanmax(S_filtered), Smax])
-        print('S ranges from %e to %e' % (Smin, Smax))
+        #print('S ranges from %e to %e' % (Smin, Smax))
         return Smin, Smax    
-    
-   
         
     def calculateSubplotPositions(numchannels, channelNum, frameLeft=0.12, frameBottom=0.08, \
                               totalWidth = 0.8, totalHeight = 0.88, fractionalSpectrogramHeight = 0.8):
@@ -286,7 +272,7 @@ class icewebSpectrogram:
         channelHeight = totalHeight/numchannels;
         spectrogramHeight = fractionalSpectrogramHeight * channelHeight;
         traceHeight = channelHeight - spectrogramHeight; 
-        spectrogramBottom = frameBottom + (numchannels - channelNum - 1) * channelHeight; # only change was to subtract 1 here, since in Python channelnum goes from 0..N-1, not 1..N as in MATLAB
+        spectrogramBottom = frameBottom + (numchannels - channelNum - 1) * channelHeight; 
         traceBottom = spectrogramBottom + spectrogramHeight;
         spectrogramPosition = [frameLeft, spectrogramBottom, totalWidth, spectrogramHeight];
         tracePosition = [frameLeft, traceBottom, totalWidth, traceHeight];
@@ -323,7 +309,6 @@ def compute_spectrogram(tr, per_lap=0.9, wlen=None, mult=8.0):
         wlen = Fs / 100.0
  
     # nfft needs to be an integer, otherwise a deprecation will be raised
-    # XXX add condition for too many windows => calculation takes for ever
     nfft = int(_nearest_pow_2(wlen * Fs))
     if nfft > npts:
         nfft = int(_nearest_pow_2(npts / 8.0))
@@ -335,9 +320,8 @@ def compute_spectrogram(tr, per_lap=0.9, wlen=None, mult=8.0):
 
     y = y - y.mean()
 
-    # Here we call not plt.specgram as this already produces a plot
-    # matplotlib.mlab.specgram should be faster as it computes only the
-    # arrays
+    # Here we do not call plt.specgram as that always produces a plot.
+    # matplotlib.mlab.specgram should be faster as it computes only the arrays
     S, F, T = mlab.specgram(y, Fs=Fs, NFFT=nfft, pad_to=mult, noverlap=nlap, mode='magnitude')
         
     return T, F, S
