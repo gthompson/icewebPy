@@ -167,7 +167,8 @@ class icewebSpectrogram:
                     vmin, vmax = clim
             if dbscale:
                 S = amp2dB(S)
-                                
+            
+            #print(T.shape, F.shape, S.shape)
             sgram_handle = ax[c*2+1].pcolormesh(T, F, S, vmin=vmin, vmax=vmax, cmap=cmap )
             ax[c*2+1].set_ylim(fmin, fmax)
         
@@ -218,14 +219,16 @@ class icewebSpectrogram:
         # set the xlimits for each panel from the min and max time values we kept updating
         min_t = min([tr.stats.starttime for tr in self.stream]) 
         max_t = max([tr.stats.endtime for tr in self.stream]) - min_t        
-        [min_T, max_T] = icewebSpectrogram.T_range(self) 
         for c in range(N): 
             ax[c*2].set_xlim(0, max_t)
             ax[c*2].grid(axis='x', linestyle = ':', linewidth=0.5)
             #ax[c*2+1].set_xlim(min_T, max_T)
             ax[c*2+1].set_xlim(0, max_t)
             ax[c*2+1].grid(True, linestyle = ':', linewidth=0.5)    
-        
+
+        # change all font sizes
+        plt.rcParams.update({'font.size': 8})    
+                
         # write plot to file
         if outfile:
             fig.savefig(outfile, dpi=100)
