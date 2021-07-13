@@ -12,6 +12,9 @@ from obspy.imaging.cm import pqlx
 # adding colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+# for spectrum
+from scipy import interpolate
+
 class icewebSpectrogram:
     
     def __init__(self, stream=None, secsPerFFT=-1):
@@ -20,25 +23,29 @@ class icewebSpectrogram:
         :param st: an ObsPy Stream object. No detrending or filtering is done, so do that before calling this function.
         """
         self.stream = Stream()
-        self.F = []
-        self.T = []
-        self.S = []
         self.precomputed = False
         if isinstance(stream, Stream):
             self.stream = stream
+            count = 0
+            for tr in self.stream:
+                if 'spectrogramdata' in tr.stats:
+                    count += 1
+    
+            if len(self.stream)==count:
+                self.precomputed = True
        
     def __str__(self):
         str = '\n\nicewebSpectrogram:\n'
         str += self.stream.__str__()
-        str += '\nF: %d 1-D numpy arrays' % len(self.F)
-        str += '\nT: %d 1-D numpy arrays' % len(self.T)
-        str += '\nS: %d 2-D numpy arrays\n\n' % len(self.S)
+        #str += '\nF: %d 1-D numpy arrays' % len(self.F)
+        #str += '\nT: %d 1-D numpy arrays' % len(self.T)
+        #str += '\nS: %d 2-D numpy arrays\n\n' % len(self.S)
         return str
     
     def precompute(self, secsPerFFT=None):
         """
     
-        For each Trace in self.stream, call compute_one.
+        For each Trace in self.stream, call compute_spectrogram. T,F and S arrays will be saved in tr.stats.spectrogramdata
     
         :type secsPerFFT: int or float
         :param secsPerFFT: Window length for fft in seconds. If this parameter is too
@@ -48,21 +55,18 @@ class icewebSpectrogram:
 
         # seconds to use for each FFT. 1 second if the event duration is <= 100 seconds, 6 seconds if it is 10-minutes
         if secsPerFFT is None:
-            secsPerFFT = np.ceil((self.stream[0].stats.delta * self.stream[0].stats.npts)/100)
-            #print('seconds per FFT = %.1f' % secsPerFFT)   
+            secsPerFFT = np.ceil((self.stream[0].stats.delta * self.stream[0].stats.npts)/100) 
         
         for tr in self.stream:
             [T, F, S] = compute_spectrogram(tr, wlen=secsPerFFT)
-            self.T.append(T)
-            self.F.append(F)
-            self.S.append(S)
+            tr.stats['spectrogramdata'] = {'T':T, 'F':F, 'S':S}
         self.precomputed = True
     
         return self    
 
     
     def plot(self, outfile=None, secsPerFFT=None, fmin=0.5, fmax=20.0, log=False, cmap=pqlx, clim=None, \
-                      equal_scale=False, title=None, add_colorbar=True, precompute=False, dbscale=False ):   
+                      equal_scale=False, title=None, add_colorbar=True, precompute=False, dbscale=False, trace_indexes=[] ):   
         """
         For each Trace in a Stream, plot the seismogram and spectrogram. This results in 2*N subplots 
         on the figure, where N is the number of Trace objects.
@@ -97,13 +101,22 @@ class icewebSpectrogram:
         :type title: str
         :param title: String for figure super title
         :type dbscale: bool
-        :param dbscale: If True 20 * log10 of color values is taken.         
+        :param dbscale: If True 20 * log10 of color values is taken. 
+        :type trace_indexes: list of int (or None:default)
+        :param trace_indexes: Only plot spectrograms for these trace indexes, if set.
         """
         
         if not self.precomputed and precompute:
             self = self.precompute(secsPerFFT=secsPerFFT)
+        
+        st = self.stream
+        if len(trace_indexes)>0: # same logic as metrics.select_by_index_list(st, chosen)
+            st = Stream()
+            for i, tr in enumerate(self.stream):
+                if i in trace_indexes:
+                    st.append(tr)
 
-        N = len(self.stream) # number of channels we are plotting        
+        N = len(st) # number of channels we are plotting        
         if N==0:
             print('Stream object is empty. Nothing to do')
             return
@@ -113,10 +126,10 @@ class icewebSpectrogram:
  
         if equal_scale: # calculate range of spectral amplitudes
             if self.precomputed:
-                Smin, Smax = icewebSpectrogram.S_range(self, fmin=fmin, fmax=fmax)
+                Smin, Smax = icewebSpectrogram.get_S_range(self, fmin=fmin, fmax=fmax)
             else:
-                index_min = np.argmin(self.stream.max()) # find the index of largest Trace object
-                [T, F, S] = compute_spectrogram(self.stream[index_min], wlen=secsPerFFT)
+                index_min = np.argmin(st.max()) # find the index of largest Trace object
+                [T, F, S] = compute_spectrogram(st[index_min], wlen=secsPerFFT)
                 f_indexes = np.intersect1d(np.where(F>=fmin), np.where(F<fmax))
                 S_filtered = S[f_indexes, :]
                 Smax = np.nanmax(S_filtered)
@@ -128,13 +141,11 @@ class icewebSpectrogram:
                 
             clim = (Smin, Smax)
         
-        c = 0 # initialize channel number
-        for c in range(N):
-            tr = self.stream[c]
-            if self.precomputed:
-                T = self.T[c]
-                F = self.F[c]
-                S = self.S[c]                
+        for c, tr in enumerate(st):
+            if self.precomputed: 
+                T = tr.stats.spectrogramdata.T
+                F = tr.stats.spectrogramdata.F
+                S = tr.stats.spectrogramdata.S          
             else:                
                 [T, F, S] = compute_spectrogram(tr, wlen=secsPerFFT)
         
@@ -168,15 +179,15 @@ class icewebSpectrogram:
             if dbscale:
                 S = amp2dB(S)
             
-            #print(T.shape, F.shape, S.shape)
-            sgram_handle = ax[c*2+1].pcolormesh(T, F, S, vmin=vmin, vmax=vmax, cmap=cmap )
+            #print(vmin, vmax)
+            sgram_handle = ax[c*2+1].pcolormesh(T, F, S, vmin=vmin, vmax=vmax, cmap=cmap );
             ax[c*2+1].set_ylim(fmin, fmax)
         
             # Plot colorbar
             if add_colorbar:
                 if clim: # Scaled. Add a colorbar at the bottom of the figure. Just do it once.
                     if c==0:
-                        plt.colorbar(sgram_handle, cax=cax, orientation='horizontal') 
+                        plt.colorbar(sgram_handle, cax=cax, orientation='horizontal'); 
                         if dbscale:
                             cax.set_xlabel('dB relative to 1 m/s/Hz')
                             ''' 
@@ -194,7 +205,7 @@ class icewebSpectrogram:
                 else: # Unscaled, so each spectrogram has max resolution. Add a colorbar to the right of each spectrogram.
                     divider = make_axes_locatable(ax[c*2+1])
                     cax = divider.append_axes("right", size="5%", pad=0.05)
-                    plt.colorbar(sgram_handle, cax=cax)
+                    plt.colorbar(sgram_handle, cax=cax);
                     # also add space next to Trace
                     divider2 = make_axes_locatable(ax[c*2])
                     hide_ax = divider2.append_axes("right", size="5%", pad=0.05, visible=False)
@@ -209,52 +220,41 @@ class icewebSpectrogram:
             
             # increment c and go to next trace (if any left)
             c += 1   
-    
-    
+     
         ax[N*2-1].set_xlabel('Time [s]')
     
         if title:
             ax[0].set_title(title)
         
         # set the xlimits for each panel from the min and max time values we kept updating
-        min_t = min([tr.stats.starttime for tr in self.stream]) 
-        max_t = max([tr.stats.endtime for tr in self.stream]) - min_t        
+        min_t = min([tr.stats.starttime for tr in st]) 
+        max_t = max([tr.stats.endtime for tr in st]) - min_t        
         for c in range(N): 
             ax[c*2].set_xlim(0, max_t)
             ax[c*2].grid(axis='x', linestyle = ':', linewidth=0.5)
-            #ax[c*2+1].set_xlim(min_T, max_T)
             ax[c*2+1].set_xlim(0, max_t)
             ax[c*2+1].grid(True, linestyle = ':', linewidth=0.5)    
 
         # change all font sizes
-        plt.rcParams.update({'font.size': 8})    
+        plt.rcParams.update({'font.size': 8});    
                 
         # write plot to file
         if outfile:
             fig.savefig(outfile, dpi=100)
 
-        return fig, ax
-
-    def t_range(self):
-        min_t = np.Inf
-        max_t = -np.Inf    
-        for tr in self.stream:
-            t = tr.times()
-            min_t = min([np.nanmin(t), min_t])
-            max_t = max([np.nanmax(t), max_t])
-        return min_t, max_t  
+        return fig, ax 
     
     def get_time_range(self):
         min_t = min([tr.stats.starttime for tr in self.stream]) 
         max_t = max([tr.stats.endtime for tr in self.stream]) 
         return min_t, max_t      
 
-    def S_range(self, fmin=0.5, fmax=20.0):
-        Smin = np.Inf
-        Smax = -np.Inf
-        for c in range(len(self.T)):
-            F = self.F[c]
-            S = self.S[c]
+    def get_S_range(self, fmin=0.5, fmax=20.0):
+        Smin = 999999.9
+        Smax = -999999.9
+        for tr in self.stream:
+            F = tr.stats.spectrogramdata['F']
+            S = tr.stats.spectrogramdata['S']
                             
             # filter S between fmin and fmax and then update Smin and Smax
             f_indexes = np.intersect1d(np.where(F>=fmin), np.where(F<fmax))
@@ -263,8 +263,8 @@ class icewebSpectrogram:
             except:
                 print('S_range failed. F is ',F.shape, ' S is ',S.shape)
             else:
-                Smin = min([np.nanmin(S_filtered), Smin])
-                Smax = max([np.nanmax(S_filtered), Smax])
+                Smin = np.nanmin([np.nanmin(S_filtered), Smin])
+                Smax = np.nanmax([np.nanmax(S_filtered), Smax])
         #print('S ranges from %e to %e' % (Smin, Smax))
         return Smin, Smax    
         
@@ -282,6 +282,38 @@ class icewebSpectrogram:
     
         return spectrogramPosition, tracePosition  
 
+    def compute_amplitude_spectrum(self, compute_bandwidth=False):
+        for c, tr in enumerate(self.stream):
+            tr.stats['spectrum'] = dict()
+            A = np.nanmean(tr.stats.spectrogramdata.S, axis=1)
+            F = tr.stats.spectrogramdata.F
+            max_i = np.argmax(A)
+            tr.stats.spectrum['A'] = A
+            tr.stats.spectrum['F'] = F
+            tr.stats.spectrum['peakF'] = F[max_i]
+            tr.stats.spectrum['peakA'] = max(A)
+            tr.stats.spectrum['medianF'] = np.sum(np.dot(A, F))/np.sum(A)
+            if compute_bandwidth:
+                Athresh = max(A)*0.707          
+                fn = interpolate.interp1d(F,  A)
+                xnew = np.arange(0, max(F), 0.1)
+                ynew = fn(xnew)
+                ind = np.argwhere(ynew>Athresh)
+                tr.stats.spectrum['bw_min'] = xnew[ind[0]]
+                tr.stats.spectrum['bw_max'] = xnew[ind[-1]]
+    
+    def plot_amplitude_spectrum(self):
+        fig, ax = plt.subplots(len(self.stream), 1);
+        for c, tr in enumerate(self.stream):
+            if not 'spectrum' in tr.stats:
+                continue
+            A = tr.stats.spectrum.A   
+            F = tr.stats.spectrum.F
+            ax[c].plot(F,  A);
+            ax[c].set_ylabel('Spectral Amplitude:\n%s/Hz' % tr.stats.units)
+            ax[c].set_xlabel('SSAM bin (Hz?)')
+            ax[c].set_title(tr.id)       
+    
 def compute_spectrogram(tr, per_lap=0.9, wlen=None, mult=8.0):
     """
         Computes spectrogram of the input data.
@@ -331,3 +363,8 @@ def compute_spectrogram(tr, per_lap=0.9, wlen=None, mult=8.0):
 
 def amp2dB(X):
     return 20 * np.log10(X)
+
+def dB2amp(X):
+    return np.power(10.0, float(X)/20.0)
+
+
