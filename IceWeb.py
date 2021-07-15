@@ -301,6 +301,13 @@ class icewebSpectrogram:
                 ind = np.argwhere(ynew>Athresh)
                 tr.stats.spectrum['bw_min'] = xnew[ind[0]]
                 tr.stats.spectrum['bw_max'] = xnew[ind[-1]]
+            for key in tr.stats.spectrum:
+                v = tr.stats.spectrum[key]
+                if np.ndim(v)==1:
+                    if np.size(v)==1:
+                        tr.stats.spectrum[key] = v[0]
+
+                       
     
     def plot_amplitude_spectrum(self):
         fig, ax = plt.subplots(len(self.stream), 1);
