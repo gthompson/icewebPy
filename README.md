@@ -7,7 +7,7 @@ Assuming you have this repository at /path/to/repo and an ObsPy Stream object (s
 
 <pre>
 import sys
-sys.append('/path/to/repo')
+sys.path.append('/path/to/repo')
 import IceWeb
 
 spobj = IceWeb.icewebSpectrogram(stream=st)
