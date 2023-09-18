@@ -1,3 +1,7 @@
 *.pyc
-.ipynb_checkpoints/IceWeb-checkpoint.py
-__pycache__/IceWeb.cpython-38.pyc
+.ipynb_checkpoints/
+__pycache__/
+*.csv
+*.png
+*.mseed
+.DS_Store
